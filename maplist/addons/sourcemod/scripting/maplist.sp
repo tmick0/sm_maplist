@@ -76,6 +76,8 @@ int GenerateMapList(const char[] output) {
         return count;
     }
 
+    SortADTArrayCustom(maps, MapComparator);
+
     Handle fh = OpenFile(output, "w");
     if (fh == INVALID_HANDLE) {
         return ERR_WRITE_FILE;
@@ -191,4 +193,28 @@ void ErrorString(int code, char[] buffer, int buffersz) {
     else {
         strcopy(buffer, buffersz, "unknown");
     }
+}
+
+int MapComparator(int i0, int i1, Handle arr, Handle aux) {
+    char v0[PLATFORM_MAX_PATH];
+    char v1[PLATFORM_MAX_PATH];
+
+    if (GetArrayString(arr, i0, v0, PLATFORM_MAX_PATH) < 0) {
+        return 0;
+    }
+    if (GetArrayString(arr, i1, v1, PLATFORM_MAX_PATH) < 0) {
+        return 0;
+    }
+
+    int t0 = FindCharInString(v0, '/', true);
+    int t1 = FindCharInString(v1, '/', true);
+
+    if (t0 < 0) {
+        t0 = 0;
+    }
+    if (t1 < 0) {
+        t1 = 0;
+    }
+
+    return strcmp(v0[t0], v1[t1], false);
 }
