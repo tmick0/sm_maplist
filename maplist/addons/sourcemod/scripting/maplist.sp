@@ -1,4 +1,5 @@
 #include <sourcemod>
+#include <adt_array>
 
 #pragma newdecls required
 #pragma semicolon 1
@@ -63,16 +64,16 @@ int GenerateMapList(const char[] output) {
     char FilterFilePath[PLATFORM_MAX_PATH];
     GetConVarString(CvarFilterFilePath, FilterFilePath, PLATFORM_MAX_PATH);
 
-    char tmp[1][1]; // nullable array refs pls
-    int filterc = LoadFilter(FilterFilePath, 0, tmp);
+    ArrayList filter = new ArrayList(PLATFORM_MAX_PATH);
+    int filterc = LoadFilter(FilterFilePath, filter);
     if (filterc < 0) {
         return filterc;
     }
 
-    int filter_alloc = (filterc == 0) ? 1 : filterc;
-    char[][] filterv = new char[filter_alloc][PLATFORM_MAX_PATH];
-    if (LoadFilter(FilterFilePath, filterc, filterv) != filterc) {
-        return ERR_LOAD_FILTER;
+    ArrayList maps = new ArrayList(PLATFORM_MAX_PATH);
+    int count = FindMaps(MAP_DIRECTORY, 0, filter, maps);
+    if (count < 0) {
+        return count;
     }
 
     Handle fh = OpenFile(output, "w");
@@ -80,14 +81,18 @@ int GenerateMapList(const char[] output) {
         return ERR_WRITE_FILE;
     }
 
-    int count = FindMaps(fh, MAP_DIRECTORY, 0, filterc, filterv);
+    for (int i = 0; i < count; ++i) {
+        char entry[PLATFORM_MAX_PATH];
+        maps.GetString(i, entry, PLATFORM_MAX_PATH);
+        WriteFileLine(fh, "%s", entry);
+    }
 
     CloseHandle(fh);
 
     return count;
 }
 
-int LoadFilter(const char[] path, int filterc, char[][] filterv) {
+int LoadFilter(const char[] path, ArrayList output) {
     if (strlen(path) == 0) {
         return 0;
     }
@@ -105,11 +110,8 @@ int LoadFilter(const char[] path, int filterc, char[][] filterv) {
             line[len - 1] = '\0';
             --len;
         }
-
         if (len > 0 && line[0] != '#') {
-            if (count < filterc) {
-                strcopy(filterv[count], PLATFORM_MAX_PATH, line);
-            }
+            output.PushString(line);
             ++count;
         }
     }
@@ -118,7 +120,7 @@ int LoadFilter(const char[] path, int filterc, char[][] filterv) {
     return count;
 }
 
-int FindMaps(Handle output, char[] directory, int depth, int filterc, const char[][] filterv) {
+int FindMaps(char[] directory, int depth, ArrayList filter, ArrayList output) {
     if (depth >= MAXDEPTH) {
         return 0;
     }
@@ -145,11 +147,11 @@ int FindMaps(Handle output, char[] directory, int depth, int filterc, const char
         if (type == FileType_Directory) {
             // TODO: find a better way to exclude these dirs from recursion
             if (strcmp(entry, ".") && strcmp(entry, "..") && strcmp(entry, "graphs") && strcmp(entry, "soundcache") && strcmp(entry, "cfg")) {
-                char cpath[PLATFORM_MAX_PATH];
-                Format(cpath, PLATFORM_MAX_PATH, "%s/%s", directory, entry);
+                char path[PLATFORM_MAX_PATH];
+                Format(path, PLATFORM_MAX_PATH, "%s/%s", directory, entry);
 
                 // recurse
-                int res = FindMaps(output, cpath, depth + 1, filterc, filterv);
+                int res = FindMaps(path, depth + 1, filter, output);
                 if (res < 0) {
                     CloseHandle(dh);
                     return res;
@@ -163,17 +165,12 @@ int FindMaps(Handle output, char[] directory, int depth, int filterc, const char
             int baselen = strlen(entry) - strlen(MAP_SUFFIX);
             if (StrContains(entry, MAP_SUFFIX) == baselen) {
                 // check if it is in the filter
-                // so its a linear search, sue me
-                bool filtered = false;
-                for (int i = 0; i < filterc; ++i) {
-                    if (baselen == strlen(filterv[i]) && strncmp(entry, filterv[i], baselen, false) == 0) {
-                        filtered = true;
-                        break;
-                    }
-                }
-
-                if (!filtered) {
-                    WriteFileLine(output, "%s/%s", directory, entry);
+                char basename[PLATFORM_MAX_PATH];
+                strcopy(basename, baselen + 1 < PLATFORM_MAX_PATH ? baselen + 1 : PLATFORM_MAX_PATH, entry);
+                if (filter.FindString(basename) == -1) {
+                    char path[PLATFORM_MAX_PATH];
+                    Format(path, PLATFORM_MAX_PATH, "%s/%s", directory, entry);
+                    output.PushString(path);
                     ++count;
                 }
             }
