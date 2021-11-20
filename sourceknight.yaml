@@ -1,0 +1,13 @@
+project:
+  name: maplist
+  dependencies:
+    - name: sourcemod
+      type: tar
+      version: 1.10.0-git6528
+      location: https://sm.alliedmods.net/smdrop/1.10/sourcemod-1.10.0-git6528-linux.tar.gz
+      unpack:
+      - source: /addons
+        dest: /addons
+  root: /maplist
+  targets:
+    - maplist
