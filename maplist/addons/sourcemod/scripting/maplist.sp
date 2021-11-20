@@ -2,7 +2,6 @@
 #include <adt_array>
 
 #pragma newdecls required
-#pragma semicolon 1
 
 public Plugin myinfo =
 {
@@ -29,7 +28,7 @@ ConVar CvarFilterFilePath;
 
 public void OnPluginStart() {
     RegAdminCmd(CMD_WRITEMAPLIST, CmdWriteMapList, ADMFLAG_GENERIC);
-    CvarFilterFilePath = CreateConVar(CVAR_FILTERFILEPATH, "", "path to list of maps to exclude; empty string disables the filter", FCVAR_REPLICATED | FCVAR_SPONLY);
+    CvarFilterFilePath = CreateConVar(CVAR_FILTERFILEPATH, "", "path to list of maps to exclude; empty string disables the filter", FCVAR_NONE);
     AutoExecConfig(true, "plugin_maplist");
 }
 
@@ -96,6 +95,7 @@ int GenerateMapList(const char[] output) {
 
 int LoadFilter(const char[] path, ArrayList output) {
     if (strlen(path) == 0) {
+        LogMessage("no filter file specified");
         return 0;
     }
 
@@ -119,6 +119,8 @@ int LoadFilter(const char[] path, ArrayList output) {
     }
 
     CloseHandle(fh);
+
+    LogMessage("loaded %d entries from filter file <%s>", count, path);
     return count;
 }
 
@@ -168,7 +170,7 @@ int FindMaps(char[] directory, int depth, ArrayList filter, ArrayList output) {
                 strcopy(basename, baselen + 1 < PLATFORM_MAX_PATH ? baselen + 1 : PLATFORM_MAX_PATH, entry);
                 if (filter.FindString(basename) == -1) {
                     char path[PLATFORM_MAX_PATH];
-                    Format(path, PLATFORM_MAX_PATH, "%s/%s", directory, entry);
+                    Format(path, PLATFORM_MAX_PATH, "%s/%s", directory, basename);
                     output.PushString(path);
                     ++count;
                 }
