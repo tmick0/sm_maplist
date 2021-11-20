@@ -133,7 +133,7 @@ int FindMaps(char[] directory, int depth, ArrayList filter, ArrayList output) {
 
     int count = 0;
 
-    Handle dh = OpenDirectory(MAP_DIRECTORY);
+    Handle dh = OpenDirectory(directory);
     if (dh == INVALID_HANDLE) {
         return ERR_FIND_MAPS;
     }
@@ -141,9 +141,6 @@ int FindMaps(char[] directory, int depth, ArrayList filter, ArrayList output) {
     char entry[PLATFORM_MAX_PATH];
     FileType type;
     while (ReadDirEntry(dh, entry, PLATFORM_MAX_PATH, type)) {
-
-        ReplaceString(entry, PLATFORM_MAX_PATH, "./", "");
-
         if (type == FileType_Directory) {
             // TODO: find a better way to exclude these dirs from recursion
             if (strcmp(entry, ".") && strcmp(entry, "..") && strcmp(entry, "graphs") && strcmp(entry, "soundcache") && strcmp(entry, "cfg")) {
