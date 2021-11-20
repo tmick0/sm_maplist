@@ -82,10 +82,11 @@ int GenerateMapList(const char[] output) {
         return ERR_WRITE_FILE;
     }
 
+    int prefixlen = strlen(MAP_DIRECTORY);
     for (int i = 0; i < count; ++i) {
         char entry[PLATFORM_MAX_PATH];
         maps.GetString(i, entry, PLATFORM_MAX_PATH);
-        WriteFileLine(fh, "%s", entry);
+        WriteFileLine(fh, "%s", entry[prefixlen]);
     }
 
     CloseHandle(fh);
@@ -107,12 +108,8 @@ int LoadFilter(const char[] path, ArrayList output) {
 
     char line[PLATFORM_MAX_PATH];
     while (ReadFileLine(fh, line, PLATFORM_MAX_PATH)) {
-        int len = strlen(line);
-        if (line[len - 1] == '\n') {
-            line[len - 1] = '\0';
-            --len;
-        }
-        if (len > 0 && line[0] != '#') {
+        TrimString(line);
+        if (strlen(line) > 0 && line[0] != '#') {
             output.PushString(line);
             ++count;
         }
@@ -146,8 +143,7 @@ int FindMaps(char[] directory, int depth, ArrayList filter, ArrayList output) {
     FileType type;
     while (ReadDirEntry(dh, entry, PLATFORM_MAX_PATH, type)) {
         if (type == FileType_Directory) {
-            // TODO: find a better way to exclude these dirs from recursion
-            if (strcmp(entry, ".") && strcmp(entry, "..") && strcmp(entry, "graphs") && strcmp(entry, "soundcache") && strcmp(entry, "cfg")) {
+            if (strcmp(entry, ".") && strcmp(entry, "..")) {
                 char path[PLATFORM_MAX_PATH];
                 Format(path, PLATFORM_MAX_PATH, "%s/%s", directory, entry);
 
