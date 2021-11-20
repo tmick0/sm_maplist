@@ -209,12 +209,5 @@ int MapComparator(int i0, int i1, Handle arr, Handle aux) {
     int t0 = FindCharInString(v0, '/', true);
     int t1 = FindCharInString(v1, '/', true);
 
-    if (t0 < 0) {
-        t0 = 0;
-    }
-    if (t1 < 0) {
-        t1 = 0;
-    }
-
-    return strcmp(v0[t0], v1[t1], false);
+    return strcmp(v0[t0 + 1], v1[t1 + 1], false);
 }
