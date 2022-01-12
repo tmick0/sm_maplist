@@ -9,7 +9,7 @@ public Plugin myinfo =
     author = "tmick0",
     description = "Generates a map list",
     version = "0.1",
-    url = "github.com/tmick0/maplist"
+    url = "github.com/tmick0/sm_maplist"
 };
 
 #define MAP_DIRECTORY "maps/"
