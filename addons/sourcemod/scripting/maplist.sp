@@ -1,5 +1,6 @@
 #include <sourcemod>
 #include <adt_array>
+#include <autoexecconfig>
 
 #pragma newdecls required
 
@@ -14,9 +15,13 @@ public Plugin myinfo =
 
 #define MAP_DIRECTORY "maps/"
 #define MAP_SUFFIX ".bsp"
+
 #define CVAR_FILTERFILEPATH "sm_maplist_filterfile"
 #define CVAR_FILTERRELATIVE "sm_maplist_filterrelative"
+#define CVAR_DEBUG "sm_maplist_debug"
+
 #define CMD_WRITEMAPLIST "sm_writemaplist"
+
 #define MAXDEPTH 5
 #define ERROR_STRING_LEN 32
 #define CHAT_BUFFER_LEN 128
@@ -27,11 +32,19 @@ public Plugin myinfo =
 
 ConVar CvarFilterFilePath;
 ConVar CvarFilterRelative;
+ConVar CvarDebug;
 
 public void OnPluginStart() {
     RegAdminCmd(CMD_WRITEMAPLIST, CmdWriteMapList, ADMFLAG_GENERIC);
-    CvarFilterFilePath = CreateConVar(CVAR_FILTERFILEPATH, "", "path to list of maps to exclude; empty string disables the filter", FCVAR_NONE);
-    AutoExecConfig(true, "plugin_maplist");
+
+    AutoExecConfig_SetCreateDirectory(true);
+    AutoExecConfig_SetCreateFile(true);
+    AutoExecConfig_SetFile("plugin_maplist");
+    CvarFilterFilePath = AutoExecConfig_CreateConVar(CVAR_FILTERFILEPATH, "", "path to list of maps to exclude; empty string disables the filter");
+    CvarFilterRelative = AutoExecConfig_CreateConVar(CVAR_FILTERRELATIVE, "1", "if 0, filter file contains full paths relative to the /map directory (e.g., workshop/1234/de_test); if 1, filter contains names only and does not care about which directory a map is in e.g. (de_test)");
+    CvarDebug = AutoExecConfig_CreateConVar(CVAR_DEBUG, "0", "set to 1 to enable debug output");
+    AutoExecConfig_ExecuteFile();
+    AutoExecConfig_CleanFile();
 }
 
 public Action CmdWriteMapList(int client, int argc) {
@@ -62,8 +75,12 @@ public Action CmdWriteMapList(int client, int argc) {
 }
 
 int GenerateMapList(const char[] output) {
+    int verbose = GetConVarInt(CvarDebug);
+
     char FilterFilePath[PLATFORM_MAX_PATH];
     GetConVarString(CvarFilterFilePath, FilterFilePath, PLATFORM_MAX_PATH);
+
+    int relative = GetConVarInt(CvarFilterRelative);
 
     ArrayList filter = new ArrayList(PLATFORM_MAX_PATH);
     int filterc = LoadFilter(FilterFilePath, filter);
@@ -72,7 +89,7 @@ int GenerateMapList(const char[] output) {
     }
 
     ArrayList maps = new ArrayList(PLATFORM_MAX_PATH);
-    int count = FindMaps(MAP_DIRECTORY, 0, filter, maps);
+    int count = FindMaps(MAP_DIRECTORY, 0, filter, maps, relative, verbose);
     if (count < 0) {
         return count;
     }
@@ -123,9 +140,13 @@ int LoadFilter(const char[] path, ArrayList output) {
     return count;
 }
 
-int FindMaps(char[] directory, int depth, ArrayList filter, ArrayList output) {
+int FindMaps(char[] directory, int depth, ArrayList filter, ArrayList output, int relative, int verbose) {
     if (depth >= MAXDEPTH) {
         return 0;
+    }
+
+    if (verbose) {
+        LogMessage("entering directory: <%s>", directory);
     }
 
     // remove trailing slash
@@ -150,7 +171,7 @@ int FindMaps(char[] directory, int depth, ArrayList filter, ArrayList output) {
                 Format(path, PLATFORM_MAX_PATH, "%s/%s", directory, entry);
 
                 // recurse
-                int res = FindMaps(path, depth + 1, filter, output);
+                int res = FindMaps(path, depth + 1, filter, output, relative, verbose);
                 if (res < 0) {
                     CloseHandle(dh);
                     return res;
@@ -163,12 +184,17 @@ int FindMaps(char[] directory, int depth, ArrayList filter, ArrayList output) {
             // check if it is a map
             int baselen = strlen(entry) - strlen(MAP_SUFFIX);
             if (StrContains(entry, MAP_SUFFIX) == baselen) {
-                // check if it is in the filter
+                if (verbose) {
+                    LogMessage("found a map: <%s>", entry);
+                }
+
                 char basename[PLATFORM_MAX_PATH];
                 strcopy(basename, baselen + 1 < PLATFORM_MAX_PATH ? baselen + 1 : PLATFORM_MAX_PATH, entry);
-                if (filter.FindString(basename) == -1) {
-                    char path[PLATFORM_MAX_PATH];
-                    Format(path, PLATFORM_MAX_PATH, "%s/%s", directory, basename);
+
+                char path[PLATFORM_MAX_PATH];
+                Format(path, PLATFORM_MAX_PATH, "%s/%s", directory, basename);
+
+                if (!CheckFilter(path, filter, relative, verbose)) {
                     output.PushString(path);
                     ++count;
                 }
@@ -178,6 +204,23 @@ int FindMaps(char[] directory, int depth, ArrayList filter, ArrayList output) {
 
     CloseHandle(dh);
     return count;
+}
+
+bool CheckFilter(const char[] path, ArrayList filter, int relative, int verbose) {
+    char compare_name[PLATFORM_MAX_PATH];
+    if (relative) {
+        int last_sep = FindCharInString(path, '/', true);
+        strcopy(compare_name, PLATFORM_MAX_PATH, path[last_sep + 1]);
+    }
+    else {
+        strcopy(compare_name, PLATFORM_MAX_PATH, path[strlen(MAP_DIRECTORY)]);
+    }
+    bool result = filter.FindString(compare_name) != -1;
+    if (verbose) {
+        LogMessage("checking filter for <%s>", compare_name);
+        LogMessage(" is in filter? %s", result ? "yes" : "no");
+    }
+    return result;
 }
 
 void ErrorString(int code, char[] buffer, int buffersz) {
