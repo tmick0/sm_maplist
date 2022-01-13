@@ -15,6 +15,7 @@ public Plugin myinfo =
 #define MAP_DIRECTORY "maps/"
 #define MAP_SUFFIX ".bsp"
 #define CVAR_FILTERFILEPATH "sm_maplist_filterfile"
+#define CVAR_FILTERRELATIVE "sm_maplist_filterrelative"
 #define CMD_WRITEMAPLIST "sm_writemaplist"
 #define MAXDEPTH 5
 #define ERROR_STRING_LEN 32
@@ -25,6 +26,7 @@ public Plugin myinfo =
 #define ERR_FIND_MAPS -3
 
 ConVar CvarFilterFilePath;
+ConVar CvarFilterRelative;
 
 public void OnPluginStart() {
     RegAdminCmd(CMD_WRITEMAPLIST, CmdWriteMapList, ADMFLAG_GENERIC);

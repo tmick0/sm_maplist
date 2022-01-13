@@ -8,6 +8,13 @@ project:
       unpack:
       - source: /addons
         dest: /addons
-  root: /maplist
+    - name: autoexecconfig
+      type: git
+      repo: https://github.com/Impact123/AutoExecConfig.git
+      unpack:
+      - source: /autoexecconfig.inc
+        dest: /addons/sourcemod/scripting/include/autoexecconfig.inc
+  root: /
+  output: /addons/sourcemod/plugins
   targets:
     - maplist
